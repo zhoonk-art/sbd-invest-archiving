@@ -408,7 +408,7 @@ select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line)
       ${c.price&&c.coin_price?'':`      <div class="tile"><div class="k">EV mNAV</div><div class="v num">${c.mnav.toFixed(2)}x${c.mnav_src==='calc'?'*':''}</div>
         <div class="d">${krDate(c.mnav_date||c.date)}${c.price?` · ${TK2[tab]} <span class="num">$${c.price}</span>`:''}</div>
         ${c.coin_price?`<div class="d">${U} <span class="num">${fmtUsd(c.coin_price)}</span></div>`:''}<div class="d">EV / ${U} value</div></div>`}
-      ${tab==='mstr'?'':`<div class="tile wide"><div class="k">$1,000</div>
+      ${true?'':`<div class="tile wide"><div class="k">$1,000</div>
         <div class="d" style="color:var(--fg);font-size:14px">${U} <span class="num">$1,000</span> · ${TK2[tab]} <span class="num">$${fmtInt(1000/c.mnav)}</span></div>
         ${own!=null?`<div class="d">선순위 차감 후 보통주 몫 <span class="num">${(own*100).toFixed(0)}%</span></div>`:''}
         <div class="d">${pay}${ann!=null?` · ${U}/share 연환산 <span class="num ${cls(ann)}">${sign(ann)}${Math.abs(ann*100).toFixed(1)}%</span>`:''}</div></div>`}`+sp;
