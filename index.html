@@ -363,20 +363,23 @@ select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line)
 
   // ---- live quotes (browser, no key) ----
   const nwS='style="white-space:nowrap"';
-  const liveTile=()=>`<div class="tile wide" style="text-align:center"><div class="k">Live</div><div class="v num" id="lvU" ${nwS}>${LV.lvU||'—'}</div><div class="d num" id="lvK" ${nwS}>${LV.lvK||'—'}</div><div class="d" id="lvM" ${nwS}>${LV.lvM||'—'}</div></div>`;
-  const LV={},setLV=(id,h)=>{LV[id]=h;const e=$(id);if(e)e.innerHTML=h};
+  const LQ={mstr:{c:'BTC',s:'NASDAQ:MSTR'},bmnr:{c:'ETH',s:'NYSE:BMNR'}};
+  const LV={},setLV=(t,id,h)=>{LV[t+id]=h;if(t===tab){const e=$(id);if(e)e.innerHTML=h}};
+  const liveTile=()=>{const g=id=>LV[tab+id]||'—';return `<div class="tile wide" style="text-align:center"><div class="k">${LQ[tab].c} Live</div><div class="v num" id="lvU" ${nwS}>${g('lvU')}</div><div class="d num" id="lvK" ${nwS}>${g('lvK')}</div><div class="d" id="lvM" ${nwS}>${g('lvM')}</div></div>`};
   const jget=async(u,o)=>{const r=await fetch(u,o);if(!r.ok)throw 0;return r.json()};
   async function live(){
-    if(!$('lvU'))return;
-    try{const j=await jget('https://api.coinbase.com/v2/prices/BTC-USD/spot');setLV('lvU','BTC '+fmtUsd(+j.data.amount))}
-    catch(e){try{const j=await jget('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');setLV('lvU','BTC '+fmtUsd(+j.price))}catch(e){}}
-    try{const j=await jget('https://api.upbit.com/v1/ticker?markets=KRW-BTC');setLV('lvK','₩'+fmtInt(j[0].trade_price))}catch(e){}
-    try{const j=await jget('https://scanner.tradingview.com/america/scan',{method:'POST',body:JSON.stringify({symbols:{tickers:['NASDAQ:MSTR']},columns:['close','premarket_close','postmarket_close']})});
+    if(!$('lvU')||!LQ[tab])return;
+    const t=tab,{c,s:sym}=LQ[t];
+    try{const j=await jget(`https://api.coinbase.com/v2/prices/${c}-USD/spot`);setLV(t,'lvU',fmtUsd(+j.data.amount))}
+    catch(e){try{const j=await jget(`https://api.binance.com/api/v3/ticker/price?symbol=${c}USDT`);setLV(t,'lvU',fmtUsd(+j.price))}catch(e){}}
+    try{const j=await jget(`https://api.upbit.com/v1/ticker?markets=KRW-${c}`);setLV(t,'lvK','₩'+fmtInt(j[0].trade_price))}
+    catch(e){try{const j=await jget(`https://api.bithumb.com/public/ticker/${c}_KRW`);setLV(t,'lvK','₩'+fmtInt(+j.data.closing_price))}catch(e){}}
+    try{const j=await jget('https://scanner.tradingview.com/america/scan',{method:'POST',body:JSON.stringify({symbols:{tickers:[sym]},columns:['close','premarket_close','postmarket_close']})});
       const [cl,pre,post]=j.data[0].d;
       const ny=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})),wd=ny.getDay(),m=ny.getHours()*60+ny.getMinutes(),open=wd>0&&wd<6;
-      let px=cl,tag='Close';
-      if(open&&m>=240&&m<570&&pre!=null){px=pre;tag='Pre'}else if(open&&m>=570&&m<960){tag='15m delay'}else if(open&&m>=960&&m<1200&&post!=null){px=post;tag='After'}
-      setLV('lvM',`MSTR <span class="num">$${(+px).toFixed(2)}</span> · ${tag}`)}catch(e){}
+      let px=cl;
+      if(open&&m>=240&&m<570&&pre!=null)px=pre;else if(open&&m>=960&&m<1200&&post!=null)px=post;
+      setLV(t,'lvM',`${TK2[t]} <span class="num">$${(+px).toFixed(2)}</span>`)}catch(e){}
   }
   setInterval(live,30000);
   // ---- per-share ----
@@ -398,7 +401,7 @@ select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line)
       const X=t=>4+(t-x0)/((x1-x0)||1)*(W-8),Y=v=>4+(1-(v-lo)/((hi-lo)||1))*(H-8);
       sp=`<div class="tile wide spark"><div class="k">${U} / share</div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${U} / share"><path d="M${h.map(r=>X(+toD(r.date)).toFixed(1)+','+Y(per(r)).toFixed(1)).join(' L')}" fill="none" stroke="${TABS[tab].color}" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
         <div class="d">${krDate(h[0].date)} <span class="num">${f6(per(h[0]))}</span> → ${krDate(c.date)} <span class="num">${f6(cps)}</span></div></div>`}
-    el.innerHTML=(tab==='mstr'?liveTile():'')+`
+    el.innerHTML=liveTile()+`
       ${tab==='mstr'&&c.price&&c.coin_price?`<div class="tile wide" style="text-align:center"><div class="k">${U} / share</div><div class="v num">${f6(cps)}</div><div style="display:flex;gap:12px;margin:4px 0"><div style="flex:1;text-align:center"><div class="d" style="white-space:nowrap"><span class="num">${fmtInt(cps*1e8)}</span> sats</div><div class="d" style="white-space:nowrap"><span class="num">$${(cps*c.coin_price).toFixed(2)}</span></div></div><div style="flex:1;text-align:center"><div class="d" style="white-space:nowrap">${TK2[tab]}/${U} : <span class="num">${(c.price/(cps*c.coin_price)).toFixed(2)}</span></div><div class="d" style="white-space:nowrap">EV/${U} : <span class="num">${c.mnav.toFixed(2)}</span></div></div></div><div class="d">${krDate(c.price_date||c.mnav_date||c.date)}</div></div>`:`<div class="tile"><div class="k">${U} / share</div><div class="v num">${f6(cps)}</div>
         ${tab==='mstr'?`<div class="d"><span class="num">${fmtInt(cps*1e8)}</span> sats</div>`:''}
         ${tab==='mstr'&&c.price&&c.coin_price?`<div class="d">${TK2[tab]}/${U} : <span class="num">${(c.price/(cps*c.coin_price)).toFixed(2)}</span></div><div class="d">EV/${U} : <span class="num">${c.mnav.toFixed(2)}</span></div><div class="d">${krDate(c.price_date||c.mnav_date||c.date)}</div>`:`${g!=null?`<div class="d">${krDate(base.date)} 대비 <span class="num ${cls(g)}">${sign(g)}${Math.abs(g*100).toFixed(1)}%</span></div>`:''}<div class="d">${c.shares_basis||''} <span class="num">${fmtInt(c.shares/1e3)}</span>k (${krDate(c.shares_date||c.date)})</div>`}</div>`}
