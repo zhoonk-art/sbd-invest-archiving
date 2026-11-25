@@ -363,19 +363,20 @@ select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line)
 
   // ---- live quotes (browser, no key) ----
   const nwS='style="white-space:nowrap"';
-  const liveTile=()=>`<div class="tile wide" style="text-align:center"><div class="k">Live</div><div class="v num" id="lvU" ${nwS}>—</div><div class="d num" id="lvK" ${nwS}>—</div><div class="d" id="lvM" ${nwS}>—</div></div>`;
+  const liveTile=()=>`<div class="tile wide" style="text-align:center"><div class="k">Live</div><div class="v num" id="lvU" ${nwS}>${LV.lvU||'—'}</div><div class="d num" id="lvK" ${nwS}>${LV.lvK||'—'}</div><div class="d" id="lvM" ${nwS}>${LV.lvM||'—'}</div></div>`;
+  const LV={},setLV=(id,h)=>{LV[id]=h;const e=$(id);if(e)e.innerHTML=h};
   const jget=async(u,o)=>{const r=await fetch(u,o);if(!r.ok)throw 0;return r.json()};
   async function live(){
     if(!$('lvU'))return;
-    try{const j=await jget('https://api.coinbase.com/v2/prices/BTC-USD/spot');$('lvU').textContent='BTC '+fmtUsd(+j.data.amount)}
-    catch(e){try{const j=await jget('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');$('lvU').textContent='BTC '+fmtUsd(+j.price)}catch(e){}}
-    try{const j=await jget('https://api.upbit.com/v1/ticker?markets=KRW-BTC');$('lvK').innerHTML='₩'+fmtInt(j[0].trade_price)}catch(e){}
+    try{const j=await jget('https://api.coinbase.com/v2/prices/BTC-USD/spot');setLV('lvU','BTC '+fmtUsd(+j.data.amount))}
+    catch(e){try{const j=await jget('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');setLV('lvU','BTC '+fmtUsd(+j.price))}catch(e){}}
+    try{const j=await jget('https://api.upbit.com/v1/ticker?markets=KRW-BTC');setLV('lvK','₩'+fmtInt(j[0].trade_price))}catch(e){}
     try{const j=await jget('https://scanner.tradingview.com/america/scan',{method:'POST',body:JSON.stringify({symbols:{tickers:['NASDAQ:MSTR']},columns:['close','premarket_close','postmarket_close']})});
       const [cl,pre,post]=j.data[0].d;
       const ny=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'})),wd=ny.getDay(),m=ny.getHours()*60+ny.getMinutes(),open=wd>0&&wd<6;
       let px=cl,tag='Close';
       if(open&&m>=240&&m<570&&pre!=null){px=pre;tag='Pre'}else if(open&&m>=570&&m<960){tag='15m delay'}else if(open&&m>=960&&m<1200&&post!=null){px=post;tag='After'}
-      $('lvM').innerHTML=`MSTR <span class="num">$${(+px).toFixed(2)}</span> · ${tag}`}catch(e){}
+      setLV('lvM',`MSTR <span class="num">$${(+px).toFixed(2)}</span> · ${tag}`)}catch(e){}
   }
   setInterval(live,30000);
   // ---- per-share ----
