@@ -189,6 +189,7 @@ select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line)
         ${yh!=null?`<div class="d">1년 전 대비 <span class="num ${cls(yh)}">${sign(yh)}${fmtInt(Math.abs(yh))}</span></div>`:''}</div>
       <div class="tile"><div class="k">평단 (1 ${U}당)</div><div class="v num">${C.avg_cost?fmtUsd(C.avg_cost)+(C.avg_src==='calc'?'*':''):'—'}</div>
         ${old&&C.avg_cost?`<div class="d">${krDate(C.date)} ${C.form||''} 기준</div>`:''}
+        ${C.avg_cost?`<div class="d avgPct" data-a="${C.avg_cost}" data-s="1" style="white-space:nowrap"></div>`:''}
         ${da!=null?`<div class="d">직전 공시 대비 <span class="num">${sign(da)}${fmtUsd(Math.abs(da))}</span></div>`:''}
         ${ya!=null?`<div class="d">1년 전 대비 <span class="num">${sign(ya)}${fmtUsd(Math.abs(ya))}</span>${Y.avg_src==='calc'?'*':''}</div>`:''}</div>
       <div class="tile wide"><div class="k">총 매입액 · 기준일</div><div class="d" style="color:var(--fg);font-size:14px">
@@ -236,7 +237,7 @@ select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line)
       `<circle id="${svgId}d" r="4" fill="${color}" stroke="var(--surface)" stroke-width="2" cx="${last[0]}" cy="${last[1]}"/>`+
       `<rect x="${ml}" y="0" width="${W-ml-mr}" height="${H}" fill="transparent" id="${svgId}h"/>`;
     const tip=$(tipId), real=data.filter(r=>!r._clip);
-    const show=r=>{const i=rows.indexOf(r);tip.innerHTML=fmtTip(r,prevOf(i,rows))};
+    const show=r=>{const i=rows.indexOf(r);tip.innerHTML=fmtTip(r,prevOf(i,rows));fillPct()};
     show(real[real.length-1]);
     const hit=$(svgId+'h'), cur=$(svgId+'x'), dot=$(svgId+'d');
     const move=ev=>{const b=svg.getBoundingClientRect();const px=(ev.clientX-b.left)/b.width*W;let best=0,bd=1e9;real.forEach((r,i)=>{const dd=Math.abs(X(+toD(r.date))-px);if(dd<bd){bd=dd;best=i}});const r=real[best];const cx=X(+toD(r.date)),cy=Yp(r[key]);cur.setAttribute('x1',cx);cur.setAttribute('x2',cx);cur.setAttribute('visibility','visible');dot.setAttribute('cx',cx);dot.setAttribute('cy',cy);show(r)};
@@ -247,7 +248,7 @@ select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line)
   function axisUsd(v){return '$'+(v>=1e3?Math.round(v/1e3)+'K':Math.round(v))}
 
   function tipH(r,p){const d=p?r.holdings-p.holdings:null;return `<b>${krDate(r.date)}</b> · <span class="num">${fmtInt(r.holdings)} ${U}</span>`+(d!=null?`<br><span class="muted">직전 공시 대비</span> <span class="num ${cls(d)}">${sign(d)}${fmtInt(Math.abs(d))} ${U}</span>`:'')}
-  function tipA(r,p){const d=p&&p.avg_cost?r.avg_cost-p.avg_cost:null;return `<b>${krDate(r.date)}</b> · 평단 <span class="num">${fmtUsd(r.avg_cost)}</span>${r.avg_src==='calc'?' <span class="muted">(계산값)</span>':''}`+(d!=null?`<br><span class="muted">직전 공시 대비</span> <span class="num">${sign(d)}${fmtUsd(Math.abs(d))}</span>`:'')}
+  function tipA(r,p){const d=p&&p.avg_cost?r.avg_cost-p.avg_cost:null;return `<b>${krDate(r.date)}</b> · 평단 <span class="num">${fmtUsd(r.avg_cost)}</span>${r.avg_src==='calc'?' <span class="muted">(계산값)</span>':''}`+`<span class="avgPct" data-a="${r.avg_cost}" style="white-space:nowrap"></span>`+(d!=null?`<br><span class="muted">직전 공시 대비</span> <span class="num">${sign(d)}${fmtUsd(Math.abs(d))}</span>`:'')}
 
   function ledger(){
     const list=rows.slice().reverse().slice(0,shown);
@@ -364,14 +365,18 @@ select{font:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--line)
   // ---- live quotes (browser, no key) ----
   const nwS='style="white-space:nowrap"';
   const LQ={mstr:{c:'BTC',s:'NASDAQ:MSTR'},bmnr:{c:'ETH',s:'NYSE:BMNR'}};
+  const LP={};
+  function fillPct(){const p=LP[tab];document.querySelectorAll('.avgPct').forEach(e=>{const a=+e.dataset.a;if(!p||!a){e.innerHTML='';return}const g=p/a-1,v=`<span class="num ${cls(g)}">${sign(g)}${Math.abs(g*100).toFixed(1)}%</span>`;
+    e.innerHTML=e.dataset.s?`평단 대비 현재가 ${v}`:`<br><span class="muted">현재가</span> <span class="num">${fmtUsd(p)}</span> <span class="muted">(평단 대비</span> ${v}<span class="muted">)</span>`})}
   const LV={},setLV=(t,id,h)=>{LV[t+id]=h;if(t===tab){const e=$(id);if(e)e.innerHTML=h}};
   const liveTile=()=>{const g=id=>LV[tab+id]||'—';return `<div class="tile wide" style="text-align:center"><div class="k">${LQ[tab].c} Live</div><div class="v num" id="lvU" ${nwS}>${g('lvU')}</div><div class="d num" id="lvK" ${nwS}>${g('lvK')}</div><div class="d" id="lvM" ${nwS}>${g('lvM')}</div></div>`};
   const jget=async(u,o)=>{const r=await fetch(u,o);if(!r.ok)throw 0;return r.json()};
   async function live(){
     if(!$('lvU')||!LQ[tab])return;
     const t=tab,{c,s:sym}=LQ[t];
-    try{const j=await jget(`https://api.coinbase.com/v2/prices/${c}-USD/spot`);setLV(t,'lvU',fmtUsd(+j.data.amount))}
-    catch(e){try{const j=await jget(`https://api.binance.com/api/v3/ticker/price?symbol=${c}USDT`);setLV(t,'lvU',fmtUsd(+j.price))}catch(e){}}
+    try{const j=await jget(`https://api.coinbase.com/v2/prices/${c}-USD/spot`);LP[t]=+j.data.amount;setLV(t,'lvU',fmtUsd(LP[t]))}
+    catch(e){try{const j=await jget(`https://api.binance.com/api/v3/ticker/price?symbol=${c}USDT`);LP[t]=+j.price;setLV(t,'lvU',fmtUsd(LP[t]))}catch(e){}}
+    if(t===tab)fillPct();
     try{const j=await jget(`https://api.upbit.com/v1/ticker?markets=KRW-${c}`);setLV(t,'lvK','₩'+fmtInt(j[0].trade_price))}
     catch(e){try{const j=await jget(`https://api.bithumb.com/public/ticker/${c}_KRW`);setLV(t,'lvK','₩'+fmtInt(+j.data.closing_price))}catch(e){}}
     try{const j=await jget('https://scanner.tradingview.com/america/scan',{method:'POST',body:JSON.stringify({symbols:{tickers:[sym]},columns:['close','premarket_close','postmarket_close']})});
